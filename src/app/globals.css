@@ -10,6 +10,49 @@ body {
   color: #0f172a;
 }
 
+/* Scrollbar vo farbách UH (Firefox + Chrome/Edge) */
+html {
+  scrollbar-color: #1e3a8a #e2e8f0;
+}
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+::-webkit-scrollbar-track {
+  background: #e2e8f0;
+}
+::-webkit-scrollbar-thumb {
+  background: #1e3a8a;
+  border: 3px solid #e2e8f0;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #1d4ed8;
+}
+
+/* Tailwind 4 nedáva tlačidlám ručičku */
+button:not(:disabled),
+[role="button"]:not(:disabled) {
+  cursor: pointer;
+}
+
+/* Prístupnosť: viditeľný fokus pri ovládaní klávesnicou */
+:focus-visible {
+  outline: 3px solid #2563eb;
+  outline-offset: 2px;
+}
+
+/* Prístupnosť: kto nechce animácie, nemá ich */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 .tabular {
   font-variant-numeric: tabular-nums;
 }
@@ -17,6 +60,23 @@ body {
 @media print {
   .no-print {
     display: none !important;
+  }
+  /* Keď je otvorené okno (napr. detail žiadosti), tlačí sa len ono */
+  body:has(.okno-tlac) > :not(.okno-tlac) {
+    display: none !important;
+  }
+  .okno-tlac {
+    position: static !important;
+    display: block !important;
+    background: none !important;
+    padding: 0 !important;
+  }
+  .okno-tlac [role="dialog"] {
+    max-height: none !important;
+    overflow: visible !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    max-width: none !important;
   }
   body {
     background: white;

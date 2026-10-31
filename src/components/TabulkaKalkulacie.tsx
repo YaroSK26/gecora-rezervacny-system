@@ -42,7 +42,7 @@ export function TabulkaKalkulacie({ k }: { k: Kalkulacia }) {
         <thead className="text-left text-xs uppercase text-slate-500">
           <tr>
             <th className="px-3 py-2">
-              Rozpis DPH <PredpokladZnacka id="P6" />
+              Rozpis DPH <PredpokladZnacka id="P17" />
             </th>
             <th className="px-3 py-2 text-right">Základ</th>
             <th className="px-3 py-2 text-right">DPH</th>

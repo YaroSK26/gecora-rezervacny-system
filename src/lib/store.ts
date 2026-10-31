@@ -1,11 +1,20 @@
 "use client";
 
-// Jednoduché úložisko v prehliadači (localStorage). Prototyp nemá databázu (P23).
+// Jednoduché úložisko v prehliadači (localStorage). Prototyp nemá databázu (P24).
 
 import { useSyncExternalStore } from "react";
+import { UKAZKOVE_ZIADOSTI } from "./ukazka";
 import type { Kalkulacia, Objednavka } from "./vypocet";
 
-export type Ziadatel = { firma: string; ico: string; adresa: string; kontakt: string; email: string; ucel: string };
+export type Ziadatel = {
+  firma: string;
+  ico: string;
+  adresa: string;
+  kontakt: string;
+  email: string;
+  telefon: string;
+  ucel: string;
+};
 
 export type Koncept = Objednavka & { ziadatel: Ziadatel };
 
@@ -16,18 +25,20 @@ export type Ziadost = {
   ziadatel: Ziadatel;
   kalkulacia: Kalkulacia;
   schvalovatel: string;
-  stav: "caka" | "schvalena" | "zamietnuta";
+  stav: "caka" | "schvalena" | "zamietnuta" | "zrusena";
   rozhodnutie?: { kto: string; kedy: string; dovod: string };
+  zrusena?: string; // kedy žiadateľ rezerváciu zrušil
 };
 
 export type Rola = "host" | "schvalovatel" | "ekonom";
 
 type Stav = { rola: Rola | null; koncept: Koncept | null; ziadosti: Ziadost[] };
 
-const KLUC = "uh-rezervacie-prototyp";
-const PRAZDNY: Stav = { rola: null, koncept: null, ziadosti: [] };
+const KLUC = "uh-rezervacie-prototyp-v4"; // v4: telefón žiadateľa, zrušenie
+// Nový návštevník začína s ukážkovými žiadosťami
+const ZACIATOK: Stav = { rola: null, koncept: null, ziadosti: UKAZKOVE_ZIADOSTI };
 
-let stav: Stav = PRAZDNY;
+let stav: Stav = ZACIATOK;
 let nacitane = false;
 const posluchaci = new Set<() => void>();
 
@@ -36,9 +47,9 @@ function nacitaj() {
   nacitane = true;
   try {
     const t = localStorage.getItem(KLUC);
-    if (t) stav = { ...PRAZDNY, ...JSON.parse(t) };
+    if (t) stav = { ...ZACIATOK, ...JSON.parse(t) };
   } catch {
-    stav = PRAZDNY;
+    stav = ZACIATOK;
   }
 }
 
@@ -59,7 +70,7 @@ export function useStav() {
       nacitaj();
       return stav;
     },
-    () => PRAZDNY,
+    () => ZACIATOK,
   );
 }
 
@@ -90,6 +101,15 @@ export function rozhodni(cislo: string, stavZiadosti: "schvalena" | "zamietnuta"
   }));
 }
 
-export function vymazVsetko() {
-  zmen((s) => ({ ...PRAZDNY, rola: s.rola }));
+// Žiadateľ zruší čakajúcu alebo schválenú rezerváciu
+export function zrus(cislo: string) {
+  zmen((s) => ({
+    ...s,
+    ziadosti: s.ziadosti.map((z) => (z.cislo === cislo ? { ...z, stav: "zrusena", zrusena: new Date().toISOString() } : z)),
+  }));
+}
+
+// Vráti ukážkové žiadosti, zmaže vlastné. Rola ostane.
+export function obnovUkazku() {
+  zmen((s) => ({ ...ZACIATOK, rola: s.rola }));
 }

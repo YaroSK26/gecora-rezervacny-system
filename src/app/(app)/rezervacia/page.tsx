@@ -4,12 +4,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { cenaMiestnosti, SLUZBY, type SluzbaId } from "@/data/cennik";
-import { PreAutora } from "@/components/PreAutora";
 import { DalsiaFaza, Predpoklad } from "@/components/Predpoklad";
 import { TabulkaKalkulacie } from "@/components/TabulkaKalkulacie";
-import { VyplnitK1 } from "@/components/VyplnitK1";
+import { UdajeZiadosti } from "@/components/DetailZiadosti";
+import { Okno } from "@/components/Okno";
 import { odosliZiadost, ulozKoncept, useStav, type Koncept, type Ziadatel } from "@/lib/store";
-import { kontrola, miestnost, schvalovatel, vypocitaj } from "@/lib/vypocet";
+import { chybaPola, kapacitaText, kontrola, miestnost, schvalovatel, vypocitaj } from "@/lib/vypocet";
 
 const NA_POCET: SluzbaId[] = ["coffee", "obed", "parking"];
 
@@ -19,6 +19,7 @@ const POLIA: [keyof Ziadatel, string][] = [
   ["adresa", "Fakturačná adresa"],
   ["kontakt", "Kontaktná osoba"],
   ["email", "E-mail"],
+  ["telefon", "Telefón"],
   ["ucel", "Účel akcie"],
 ];
 
@@ -26,6 +27,7 @@ export default function Rezervacia() {
   const router = useRouter();
   const { koncept } = useStav();
   const [suhlas, setSuhlas] = useState(false);
+  const [ponuka, setPonuka] = useState(false);
 
   if (!koncept) {
     return (
@@ -36,7 +38,6 @@ export default function Rezervacia() {
           <Link href="/miestnosti" className="rounded bg-blue-700 px-4 py-2 font-semibold text-white">
             Nájsť miestnosť
           </Link>
-          <VyplnitK1 />
         </div>
       </div>
     );
@@ -49,50 +50,35 @@ export default function Rezervacia() {
   const zmenSluzbu = (id: SluzbaId, v: number) => zmen({ sluzby: { ...k.sluzby, [id]: v } });
 
   const chyby = kontrola(k);
-  const chybyZiadatela = POLIA.filter(([p]) => !k.ziadatel[p].trim()).map(([, n]) => n);
+  const chybyZiadatela = POLIA.filter(([p]) => chybaPola(p, k.ziadatel[p])).map(([, n]) => n);
   const kalkulacia = chyby.length === 0 ? vypocitaj(k) : null;
   const mozeOdoslat = kalkulacia && chybyZiadatela.length === 0 && suhlas;
 
+  const { ziadatel, ...objednavka } = k;
+
   function odoslat() {
     if (!kalkulacia) return;
-    const { ziadatel, ...objednavka } = k;
     odosliZiadost({ objednavka, ziadatel, kalkulacia, schvalovatel: schvalovatel(m) });
     router.push("/ziadosti");
   }
 
   return (
     <div>
-      <div className="text-sm text-slate-500">Krok 2 z 5 · Externá firma</div>
+      <button onClick={() => router.back()} className="mb-3 text-sm text-blue-700 hover:underline">
+        ← Späť na miestnosti
+      </button>
       <h1 className="text-2xl font-bold">
         Rezervácia: {m.nazov} <span className="font-mono text-base text-slate-500">{m.kod}</span>
       </h1>
       <p className="text-sm text-slate-600">
-        {m.budova} · kapacita {m.kapacita ?? "neuvedená"} · otvorené {m.otvaracieHodiny} · schvaľuje {schvalovatel(m)}
+        {m.budova} · kapacita {kapacitaText(m)} · otvorené {m.otvaracieHodiny} · schvaľuje: {schvalovatel(m)}
       </p>
-      <PreAutora>
-        <p>
-          <strong>Prečo cena hneď vedľa formulára:</strong> Zadanie, pravidlo 4 chce kalkuláciu napríklad „v súhrne pred
-          odoslaním“. Firma vidí každú zmenu ceny hneď, keď zmení čas alebo služby.
-        </p>
-        <p>
-          <strong>Kontroly:</strong> otváracie hodiny miestnosti (P14, P15), kapacita (P17), dátum od 2027 (P18), streaming
-          len s technikom (P20). Všetko z data.xlsx. Kód: <code>kontrola()</code> v <code>src/lib/vypocet.ts</code>.
-        </p>
-        <p>
-          <strong>Služby:</strong> ukazujeme len tie, ktoré cenník povoľuje pre danú miestnosť (stĺpec „Kde“). Pri IPH-K1
-          je technik, streaming aj parkovanie; pri FIE-P1 technik nie je.
-        </p>
-        <p>
-          <strong>Opakovaná rezervácia</strong> tu nie je: Baran ju chce (zápis, bod 4), ale je to ďalšia fáza. Cenu série
-          ukazuje K2.
-        </p>
-      </PreAutora>
 
       <div className="mt-4 grid gap-6 lg:grid-cols-2">
         <div className="space-y-4">
           <section className="rounded border border-slate-200 bg-white p-4">
             <h2 className="mb-2 font-semibold">Termín</h2>
-            <div className="grid grid-cols-3 gap-3 text-sm">
+            <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
               <label className="flex flex-col">
                 <span className="text-xs text-slate-500">Dátum</span>
                 <input
@@ -105,11 +91,21 @@ export default function Rezervacia() {
               </label>
               <label className="flex flex-col">
                 <span className="text-xs text-slate-500">Od</span>
-                <input type="time" step={1800} value={k.od} onChange={(e) => zmen({ od: e.target.value })} className="rounded border border-slate-300 px-2 py-1" />
+                <input
+                  type="time"
+                  value={k.od}
+                  onChange={(e) => zmen({ od: e.target.value })}
+                  className="rounded border border-slate-300 px-2 py-1"
+                />
               </label>
               <label className="flex flex-col">
                 <span className="text-xs text-slate-500">Do</span>
-                <input type="time" step={1800} value={k.do} onChange={(e) => zmen({ do: e.target.value })} className="rounded border border-slate-300 px-2 py-1" />
+                <input
+                  type="time"
+                  value={k.do}
+                  onChange={(e) => zmen({ do: e.target.value })}
+                  className="rounded border border-slate-300 px-2 py-1"
+                />
               </label>
               <label className="flex flex-col">
                 <span className="text-xs text-slate-500">Počet osôb</span>
@@ -126,8 +122,8 @@ export default function Rezervacia() {
               Cena miestnosti sa ráta po blokoch {cena.blokMin} min
               {cena.poznamka ? ` (${cena.poznamka})` : ""}.
             </p>
-            <Predpoklad id="P3" />
-            <Predpoklad id="P15" />
+            <Predpoklad id="P9" />
+            <Predpoklad id="P10" />
             <DalsiaFaza>opakovaná rezervácia (napr. každú stredu celý semester) a kontrola, či je miestnosť voľná.</DalsiaFaza>
           </section>
 
@@ -150,7 +146,10 @@ export default function Rezervacia() {
                       <span className="block text-xs text-slate-500">
                         {s.uctujeSa}
                         {s.pausal ? `, paušál ${(s.pausal / 100).toFixed(2).replace(".", ",")} €` : ""}
-                        {s.zaJednotku ? `, ${(s.zaJednotku / 100).toFixed(2).replace(".", ",")} €${s.sDph ? " s DPH" : ""}` : ""} · DPH {s.dph} %
+                        {s.zaJednotku
+                          ? `, ${(s.zaJednotku / 100).toFixed(2).replace(".", ",")} €${s.sDph ? " s DPH" : ""}`
+                          : ""}{" "}
+                        · DPH {s.dph} %
                       </span>
                     </label>
                     {naPocet && v > 0 && (
@@ -167,26 +166,34 @@ export default function Rezervacia() {
                 );
               })}
             </ul>
-            {!!k.sluzby.technik && <Predpoklad id="P4" />}
-            {!!k.sluzby.videosada && <Predpoklad id="P5" />}
-            {(!!k.sluzby.coffee || !!k.sluzby.obed) && <Predpoklad id="P21" />}
-            {!!k.sluzby.obed && <Predpoklad id="P7" />}
-            <Predpoklad id="P19" />
+            {!!k.sluzby.technik && <Predpoklad id="P11" />}
+            {!!k.sluzby.videosada && <Predpoklad id="P12" />}
+            {(!!k.sluzby.coffee || !!k.sluzby.obed) && <Predpoklad id="P13" />}
+            {!!k.sluzby.obed && <Predpoklad id="P14" />}
+            <Predpoklad id="P15" />
           </section>
 
           <section className="rounded border border-slate-200 bg-white p-4">
             <h2 className="mb-2 font-semibold">Žiadateľ (údaje pre faktúru)</h2>
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              {POLIA.map(([p, n]) => (
-                <label key={p} className={`flex flex-col ${p === "adresa" || p === "ucel" ? "col-span-2" : ""}`}>
-                  <span className="text-xs text-slate-500">{n}</span>
-                  <input
-                    value={k.ziadatel[p]}
-                    onChange={(e) => zmen({ ziadatel: { ...k.ziadatel, [p]: e.target.value } })}
-                    className="rounded border border-slate-300 px-2 py-1"
-                  />
-                </label>
-              ))}
+            <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+              {POLIA.map(([p, n]) => {
+                const chyba = k.ziadatel[p].trim() ? chybaPola(p, k.ziadatel[p]) : null;
+                return (
+                  <label key={p} className={`flex flex-col ${p === "adresa" || p === "ucel" ? "sm:col-span-2" : ""}`}>
+                    <span className="text-xs text-slate-500">{n}</span>
+                    <input
+                      type={p === "email" ? "email" : p === "telefon" ? "tel" : "text"}
+                      inputMode={p === "ico" ? "numeric" : p === "telefon" ? "tel" : undefined}
+                      autoComplete={{ email: "email", telefon: "tel", kontakt: "name", firma: "organization" }[p as string]}
+                      value={k.ziadatel[p]}
+                      onChange={(e) => zmen({ ziadatel: { ...k.ziadatel, [p]: e.target.value } })}
+                      aria-invalid={!!chyba}
+                      className={`rounded border px-2 py-1 ${chyba ? "border-red-400 bg-red-50" : "border-slate-300"}`}
+                    />
+                    {chyba && <span className="mt-0.5 text-xs text-red-700">{chyba}</span>}
+                  </label>
+                );
+              })}
             </div>
             <Predpoklad id="P16" />
           </section>
@@ -206,11 +213,11 @@ export default function Rezervacia() {
               </ul>
             </div>
           )}
-          <Predpoklad id="P1" />
-          <Predpoklad id="P6" />
+          <Predpoklad id="P8" />
+          <Predpoklad id="P17" />
 
           {chybyZiadatela.length > 0 && (
-            <div className="text-xs text-slate-500">Ešte vyplňte: {chybyZiadatela.join(", ")}.</div>
+            <div className="text-xs text-slate-500">Ešte vyplňte alebo opravte: {chybyZiadatela.join(", ")}.</div>
           )}
           <label className="flex items-start gap-2 text-sm">
             <input type="checkbox" checked={suhlas} onChange={(e) => setSuhlas(e.target.checked)} className="mt-1" />
@@ -223,11 +230,35 @@ export default function Rezervacia() {
           >
             Odoslať žiadosť na schválenie
           </button>
+          <button
+            disabled={!kalkulacia}
+            onClick={() => setPonuka(true)}
+            className="w-full cursor-pointer rounded border border-blue-700 px-4 py-2 font-semibold text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:border-slate-300 disabled:text-slate-400"
+          >
+            Cenová ponuka (tlač / PDF)
+          </button>
           <p className="text-xs text-slate-500">Žiadosť dostane: {schvalovatel(m)}.</p>
-          {k.kod === "R-AULA" && <Predpoklad id="P13" />}
-          <Predpoklad id="P12" />
+          {k.kod === "R-AULA" && <Predpoklad id="P5" />}
+          <Predpoklad id="P18" />
         </div>
       </div>
+
+      {ponuka && kalkulacia && (
+        <Okno nadpis="Cenová ponuka" sirka="max-w-4xl" onZavri={() => setPonuka(false)}>
+          <UdajeZiadosti
+            ponuka
+            z={{
+              cislo: "",
+              vytvorena: new Date().toISOString(),
+              objednavka,
+              ziadatel,
+              kalkulacia,
+              schvalovatel: schvalovatel(m),
+              stav: "caka",
+            }}
+          />
+        </Okno>
+      )}
     </div>
   );
 }

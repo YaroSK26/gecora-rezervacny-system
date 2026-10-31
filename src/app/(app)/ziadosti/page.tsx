@@ -1,29 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { PreAutora } from "@/components/PreAutora";
-import { DalsiaFaza } from "@/components/Predpoklad";
-import { HlavickaZiadosti } from "@/components/DetailZiadosti";
-import { useStav } from "@/lib/store";
+import { useState } from "react";
+import { DalsiaFaza, Predpoklad } from "@/components/Predpoklad";
+import { HlavickaZiadosti, UdajeZiadosti } from "@/components/DetailZiadosti";
+import { Okno } from "@/components/Okno";
+import { useStav, zrus, type Ziadost } from "@/lib/store";
 
 export default function MojeZiadosti() {
   const { ziadosti } = useStav();
   const posledna = ziadosti.at(-1);
+  const [detail, setDetail] = useState<Ziadost | null>(null);
+  const [rusit, setRusit] = useState<Ziadost | null>(null);
 
   return (
     <div>
-      <div className="text-sm text-slate-500">Krok 3 z 5 · Externá firma</div>
       <h1 className="text-2xl font-bold">Moje žiadosti</h1>
-      <PreAutora>
-        <p>
-          <strong>Prečo stav žiadosti:</strong> dnes firma pošle e-mail a nevie, či ho niekto čítal (e-mail od Hudáka).
-          Tu vidí, kto žiadosť posudzuje a v akom je stave.
-        </p>
-        <p>
-          <strong>E-mail s potvrdením</strong> je ďalšia fáza: poštový server školy je len vo vnútornej sieti (zápis z porady,
-          Príloha 3).
-        </p>
-      </PreAutora>
 
       {posledna?.stav === "caka" && (
         <div className="mt-4 rounded border border-green-300 bg-green-50 p-4 text-sm">
@@ -31,16 +23,16 @@ export default function MojeZiadosti() {
           <p className="mt-1">
             Teraz ju posúdi <strong>{posledna.schvalovatel}</strong>. Rezervácia platí až po schválení.
           </p>
-          <Link href="/schvalovanie" className="mt-2 inline-block rounded bg-blue-700 px-3 py-1.5 font-semibold text-white hover:bg-blue-800">
-            Pokračovať ako schvaľovateľ →
-          </Link>
         </div>
       )}
       <DalsiaFaza>potvrdenie e-mailom a pozvánka do kalendára. E-maily pôjdu cez poštový server univerzity.</DalsiaFaza>
 
       {ziadosti.length === 0 ? (
         <p className="mt-4 text-slate-600">
-          Zatiaľ žiadne žiadosti. <Link href="/miestnosti" className="text-blue-700 underline">Nájsť miestnosť</Link>
+          Zatiaľ žiadne žiadosti.{" "}
+          <Link href="/miestnosti" className="text-blue-700 underline">
+            Nájsť miestnosť
+          </Link>
         </p>
       ) : (
         <ul className="mt-4 space-y-3">
@@ -53,9 +45,60 @@ export default function MojeZiadosti() {
                   {z.rozhodnutie.dovod && ` · „${z.rozhodnutie.dovod}“`}
                 </p>
               )}
+              {z.zrusena && (
+                <p className="mt-2 text-sm text-slate-600">Zrušili ste {new Date(z.zrusena).toLocaleString("sk-SK")}.</p>
+              )}
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  onClick={() => setDetail(z)}
+                  className="cursor-pointer rounded border border-blue-700 px-3 py-1 text-sm font-semibold text-blue-700 hover:bg-blue-50"
+                >
+                  Zobraziť detail
+                </button>
+                {(z.stav === "caka" || z.stav === "schvalena") && (
+                  <button
+                    onClick={() => setRusit(z)}
+                    className="cursor-pointer rounded border border-red-700 px-3 py-1 text-sm font-semibold text-red-700 hover:bg-red-50"
+                  >
+                    Zrušiť rezerváciu
+                  </button>
+                )}
+              </div>
             </li>
           ))}
         </ul>
+      )}
+
+      {detail && (
+        <Okno nadpis={`Žiadosť ${detail.cislo}`} sirka="max-w-4xl" onZavri={() => setDetail(null)}>
+          <UdajeZiadosti z={detail} />
+        </Okno>
+      )}
+
+      {rusit && (
+        <Okno nadpis={`Zrušiť žiadosť ${rusit.cislo}?`} onZavri={() => setRusit(null)}>
+          <p className="text-sm text-slate-700">
+            Rezervácia sa zruší a miestnosť sa uvoľní. Schvaľovateľ uvidí, že ste ju zrušili. Zrušenie sa nedá vrátiť.
+          </p>
+          <Predpoklad id="P27" />
+          <div className="mt-4 flex justify-end gap-2">
+            <button
+              onClick={() => setRusit(null)}
+              className="cursor-pointer rounded border border-slate-300 px-4 py-1.5 text-sm hover:bg-slate-100"
+            >
+              Nerušiť
+            </button>
+            <button
+              onClick={() => {
+                zrus(rusit.cislo);
+                setRusit(null);
+              }}
+              className="cursor-pointer rounded bg-red-700 px-4 py-1.5 text-sm font-semibold text-white hover:bg-red-800"
+            >
+              Áno, zrušiť
+            </button>
+          </div>
+        </Okno>
       )}
     </div>
   );

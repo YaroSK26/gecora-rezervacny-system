@@ -2,6 +2,7 @@
 
 import { cenaMiestnosti, SLUZBY, ZLAVY, type SluzbaId } from "@/data/cennik";
 import miestnosti from "@/data/miestnosti.json";
+import type { Ziadatel } from "./store";
 
 export type Miestnost = (typeof miestnosti)[number];
 export const MIESTNOSTI: Miestnost[] = miestnosti;
@@ -13,10 +14,10 @@ export function miestnost(kod: string) {
 export type TypZiadatela = "externa" | "spolok" | "zamestnanec";
 
 export type Volby = {
-  bloky: "nahor" | "presne"; // P3
-  pausal: "raz" | "zaTermin"; // P8
-  spolok: "50" | "zadarmo"; // P9
-  videosada: "raz" | "zaBlok"; // P5
+  bloky: "nahor" | "presne"; // P9
+  pausal: "raz" | "zaTermin"; // P21
+  spolok: "50" | "zadarmo"; // P19
+  videosada: "raz" | "zaBlok"; // P12
 };
 
 export const PREDVOLENE_VOLBY: Volby = {
@@ -104,7 +105,7 @@ export function vypocitaj(o: Objednavka, volby: Volby = PREDVOLENE_VOLBY): Kalku
       vypocet: `${pausalKrat} × ${eur(cena.pausal)}`,
       zaklad: pausalKrat * cena.pausal,
       sadzba: 23,
-      predpoklady: n > 1 ? ["P8"] : [],
+      predpoklady: n > 1 ? ["P21"] : [],
     });
   }
   const bloky = pocetBlokov(trvanie, cena.blokMin, volby);
@@ -113,7 +114,7 @@ export function vypocitaj(o: Objednavka, volby: Volby = PREDVOLENE_VOLBY): Kalku
     vypocet: `${terminyText}${cislo(trvanie / 60)} h = ${cislo(bloky)} ${slovoBlok(bloky)} po ${cena.blokMin} min × ${eur(cena.zaBlok)}`,
     zaklad: naCent(n * bloky * cena.zaBlok),
     sadzba: 23,
-    predpoklady: trvanie % cena.blokMin !== 0 ? ["P3"] : [],
+    predpoklady: trvanie % cena.blokMin !== 0 ? ["P9"] : [],
   });
   const cenaZaMiestnost = riadky.reduce((s, r) => s + r.zaklad, 0);
 
@@ -126,7 +127,7 @@ export function vypocitaj(o: Objednavka, volby: Volby = PREDVOLENE_VOLBY): Kalku
       vypocet: `${zlava} % z ${eur(cenaZaMiestnost)}`,
       zaklad: -naCent((cenaZaMiestnost * zlava) / 100),
       sadzba: 23,
-      predpoklady: o.typ === "spolok" ? ["P9", "P10"] : ["P10", "P11"],
+      predpoklady: o.typ === "spolok" ? ["P19", "P20"] : ["P20", "P22"],
     });
   }
 
@@ -142,7 +143,7 @@ export function vypocitaj(o: Objednavka, volby: Volby = PREDVOLENE_VOLBY): Kalku
         vypocet: `${terminyText}${cislo(trvanie / 60)} h = ${cislo(b)} h × ${eur(s.zaJednotku!)}`,
         zaklad: naCent(n * b * s.zaJednotku!),
         sadzba: s.dph,
-        predpoklady: ["P4", ...(trvanie % s.blokMin! !== 0 ? ["P3"] : [])],
+        predpoklady: ["P11", ...(trvanie % s.blokMin! !== 0 ? ["P9"] : [])],
       });
     } else if (s.id === "videosada") {
       const krat = volby.videosada === "raz" ? pausalKrat : Math.ceil(n * bloky);
@@ -154,7 +155,7 @@ export function vypocitaj(o: Objednavka, volby: Volby = PREDVOLENE_VOLBY): Kalku
             : `${krat} blokov miestnosti × ${eur(s.pausal!)}`,
         zaklad: krat * s.pausal!,
         sadzba: s.dph,
-        predpoklady: ["P5"],
+        predpoklady: ["P12"],
       });
     } else if (s.pausal) {
       // za rezerváciu
@@ -163,7 +164,7 @@ export function vypocitaj(o: Objednavka, volby: Volby = PREDVOLENE_VOLBY): Kalku
         vypocet: `${pausalKrat} × ${eur(s.pausal)}`,
         zaklad: pausalKrat * s.pausal,
         sadzba: s.dph,
-        predpoklady: s.id === "upratovanie" ? ["P19"] : s.id === "streaming" ? ["P20"] : [],
+        predpoklady: s.id === "upratovanie" ? ["P15"] : s.id === "streaming" ? ["P23"] : [],
       });
     } else if (s.sDph) {
       // obed: cena je s DPH, základ dopočítame spätne
@@ -174,7 +175,7 @@ export function vypocitaj(o: Objednavka, volby: Volby = PREDVOLENE_VOLBY): Kalku
         zaklad: Math.round((brutto * 100) / (100 + s.dph)),
         brutto,
         sadzba: s.dph,
-        predpoklady: ["P7", "P21"],
+        predpoklady: ["P14", "P13"],
       });
     } else {
       // za osobu alebo za kus
@@ -183,12 +184,12 @@ export function vypocitaj(o: Objednavka, volby: Volby = PREDVOLENE_VOLBY): Kalku
         vypocet: `${terminyText}${pocet} ${s.id === "parking" ? "ks" : "os."} × ${eur(s.zaJednotku!)}`,
         zaklad: n * pocet * s.zaJednotku!,
         sadzba: s.dph,
-        predpoklady: s.id === "coffee" ? ["P21"] : [],
+        predpoklady: s.id === "coffee" ? ["P13"] : [],
       });
     }
   }
 
-  // DPH zo súčtu za každú sadzbu (P6)
+  // DPH zo súčtu za každú sadzbu (P17)
   const skupiny = ([23, 19] as const)
     .map((sadzba) => {
       const r = riadky.filter((x) => x.sadzba === sadzba);
@@ -206,6 +207,24 @@ export function vypocitaj(o: Objednavka, volby: Volby = PREDVOLENE_VOLBY): Kalku
   const spoluZaklad = skupiny.reduce((s, g) => s + g.zaklad, 0);
   const spoluDph = skupiny.reduce((s, g) => s + g.dph, 0);
   return { riadky, skupiny, spoluZaklad, spoluDph, spoluSDph: spoluZaklad + spoluDph };
+}
+
+export function kapacitaText(m: Miestnost) {
+  if (typeof m.kapacita === "number") return `${m.kapacita} miest`;
+  return !m.kapacita || m.kapacita === "?" ? "neuvedená" : m.kapacita;
+}
+
+// Údaje žiadateľa: vrátane tvaru e-mailu, telefónu a IČO (8 číslic)
+export function chybaPola(pole: keyof Ziadatel, hodnota: string): string | null {
+  const v = hodnota.trim();
+  if (!v) return "Povinné pole.";
+  if (pole === "email" && !/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(v)) return "Zadajte platný e-mail, napr. meno@firma.sk.";
+  if (pole === "ico" && !/^\d{8}$/.test(v.replace(/\s/g, ""))) return "IČO má 8 číslic.";
+  if (pole === "telefon" && !/^\+?\d{9,15}$/.test(v.replace(/[\s/-]/g, ""))) return "Zadajte telefón, napr. +421 905 123 456.";
+  if (pole === "firma" && v.length < 2) return "Zadajte názov firmy.";
+  if (pole === "kontakt" && !/\s/.test(v)) return "Zadajte meno aj priezvisko.";
+  if (pole === "adresa" && !/\d/.test(v)) return "Zadajte ulicu, číslo, PSČ a mesto.";
+  return null;
 }
 
 // Kontroly pred odoslaním. Vracia zoznam chýb (prázdny = v poriadku).
@@ -226,7 +245,7 @@ export function kontrola(o: Objednavka): string[] {
   return chyby;
 }
 
-// „07:00 až 19:00“ alebo „08:00 až 19:00 (budova 08:00 až 20:00)“ → minúty od/do. Berieme hodiny miestnosti (P14).
+// „07:00 až 19:00“ alebo „08:00 až 19:00 (budova 08:00 až 20:00)“ → minúty od/do. Berieme hodiny miestnosti (P6).
 export function otvaracieHodiny(text: string): [number, number] | null {
   const t = text.match(/(\d{2}:\d{2}).*?(\d{2}:\d{2})/);
   return t ? [minuty(t[1]), minuty(t[2])] : null;
@@ -238,13 +257,13 @@ export function dovodNedostupnosti(m: Miestnost): string | null {
   if (m.kod === "SC-B") return "Bazén sa rezervuje po dráhach: ďalšia fáza.";
   if (m.kod === "IPH-CW") return "Coworking sa rezervuje po miestach: ďalšia fáza.";
   if (m.kod === "UK-4" || m.kod === "FIE-L3") return "Len pre zamestnancov a študentov UH.";
-  if (!cenaMiestnosti(m.kod)) return "Cena 2027 chýba: cena na dopyt.";
+  if (!cenaMiestnosti(m.kod)) return "Cena na dopyt. (Chýba v Cenníku 2027.)";
   return null;
 }
 
 export function schvalovatel(m: Miestnost) {
-  // P13: pri Aule Magna rozhoduje rektorát
-  if (m.kod === "R-AULA") return "Ing. Oravcová (kancelária rektora)";
+  // P5: pri Aule Magna rozhoduje rektorát
+  if (m.kod === "R-AULA") return "Ing. Oravcová, kancelária rektora";
   return m.schvaluje;
 }
 

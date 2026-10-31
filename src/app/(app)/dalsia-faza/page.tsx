@@ -3,7 +3,7 @@ const CASTI = [
     id: "zamestnanci",
     nazov: "Rezervácie zamestnancov a študentov",
     kto: "Ing. Hudák, všetky pracoviská",
-    text: "Zamestnanci a študenti si rezervujú miestnosti po prihlásení školským účtom. Cena pre nich: zatiaľ nie je jasné, či platia (pozri P11).",
+    text: "Zamestnanci a študenti si rezervujú miestnosti po prihlásení školským účtom. Cena pre nich: zatiaľ nie je jasné, či platia (pozri P22).",
   },
   {
     id: "opakovane",

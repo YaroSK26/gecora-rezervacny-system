@@ -2,26 +2,25 @@
 
 import { useState } from "react";
 import { Predpoklad } from "@/components/Predpoklad";
-import { PreAutora } from "@/components/PreAutora";
 import { TabulkaKalkulacie } from "@/components/TabulkaKalkulacie";
 import { datum, eur, K1, K2, miestnost, PREDVOLENE_VOLBY, vypocitaj, type Objednavka, type Volby } from "@/lib/vypocet";
 
 const KROKY: [string, string, string][] = [
-  ["Bloky.", "Čas rezervácie rozdelíme na bloky miestnosti (30, 60 alebo 90 min).", "Začatý blok sa platí celý (P3)."],
+  ["Bloky.", "Čas rezervácie rozdelíme na bloky miestnosti (30, 60 alebo 90 min).", "Začatý blok sa platí celý (Predpoklad P9)."],
   ["Miestnosť.", "Paušál (raz) + počet blokov × cena za blok.", "Cenník 2027, časť D."],
-  ["Zľava.", "Len z ceny miestnosti: spolky 50 %, zamestnanci 30 %.", "Cenník 2027, časť C (P9, P10)."],
+  ["Zľava.", "Len z ceny miestnosti: spolky 50 %, zamestnanci 30 %.", "Cenník 2027, časť C (Predpoklad P19 a Predpoklad P20)."],
   ["Služby.", "Každá podľa svojho pravidla: za čas, za osobu, za rezerváciu.", "Cenník 2027, časť B."],
-  ["DPH.", "Sčítame základy podľa sadzby (23 %, 19 %) a z každého súčtu spočítame DPH.", "Zaokrúhlenie na cent (P6)."],
+  ["DPH.", "Sčítame základy podľa sadzby (23 %, 19 %) a z každého súčtu spočítame DPH.", "Zaokrúhlenie na cent (Predpoklad P17)."],
   ["Spolu.", "Základ + DPH = cena s DPH.", "Toto ide do podkladu pre faktúru."],
 ];
 
 type Prepinac ={ kluc: keyof Volby; nazov: string; predpoklad: string; moznosti: [string, string][] };
 
 const PREPINACE: Prepinac[] = [
-  { kluc: "bloky", nazov: "Začatý blok", predpoklad: "P3", moznosti: [["nahor", "platí sa celý"], ["presne", "platí sa pomerne"]] },
-  { kluc: "videosada", nazov: "Videosada", predpoklad: "P5", moznosti: [["raz", "17,50 € raz"], ["zaBlok", "17,50 € za každý blok"]] },
-  { kluc: "pausal", nazov: "Paušál pri sérii", predpoklad: "P8", moznosti: [["raz", "raz za sériu"], ["zaTermin", "za každý termín"]] },
-  { kluc: "spolok", nazov: "Študentský spolok", predpoklad: "P9", moznosti: [["50", "zľava 50 % (cenník)"], ["zadarmo", "neplatí (ŠC)"]] },
+  { kluc: "bloky", nazov: "Začatý blok", predpoklad: "P9", moznosti: [["nahor", "platí sa celý"], ["presne", "platí sa pomerne"]] },
+  { kluc: "videosada", nazov: "Videosada", predpoklad: "P12", moznosti: [["raz", "17,50 € raz"], ["zaBlok", "17,50 € za každý blok"]] },
+  { kluc: "pausal", nazov: "Paušál pri sérii", predpoklad: "P21", moznosti: [["raz", "raz za sériu"], ["zaTermin", "za každý termín"]] },
+  { kluc: "spolok", nazov: "Študentský spolok", predpoklad: "P19", moznosti: [["50", "zľava 50 % (cenník)"], ["zadarmo", "neplatí (ŠC)"]] },
 ];
 
 function Karta({ nazov, o, popis, volby }: { nazov: string; o: Objednavka; popis: string; volby: Volby }) {
@@ -74,24 +73,6 @@ export default function Kalkulacie() {
           ))}
         </ol>
       </section>
-      <PreAutora>
-        <p>
-          <strong>Zadanie, Časť 1, pravidlo 4:</strong> „z čoho sa cena skladá a koľko je spolu bez DPH, DPH a spolu s DPH.
-          Čísla sa musia dať prepočítať a sčítať na cent.“ Preto má každý riadok stĺpec „Výpočet“.
-        </p>
-        <p>
-          <strong>Zadanie, bod 1.4:</strong> výpočet oboch, ideálne screenshot. Urob screenshot tejto stránky s
-          predvolenými prepínačmi (✓).
-        </p>
-        <p>
-          <strong>Prečo prepínače:</strong> cenník je na 4 miestach nejasný. Prepínač ukáže klientovi, o koľko sa cena líši,
-          a on rozhodne. Na porade (časť 6) to je dobrá otázka: „Platia spolky 50 %, alebo nič? Pozrite, rozdiel je
-          885,60 €.“
-        </p>
-        <p>
-          Celý výpočet krok za krokom je na stránke <strong>Pre autora</strong>.
-        </p>
-      </PreAutora>
 
       <div className="mt-4 rounded border border-amber-300 bg-amber-50 p-3 text-sm">
         <div className="mb-2 font-semibold text-amber-900">
@@ -106,7 +87,7 @@ export default function Kalkulacie() {
           {PREPINACE.map((p) => (
             <div key={p.kluc} className="flex items-center gap-2">
               <span className="w-32 shrink-0 text-xs text-amber-900">
-                {p.nazov} ({p.predpoklad})
+                {p.nazov} (Predpoklad {p.predpoklad})
               </span>
               <div className="flex overflow-hidden rounded border border-amber-400">
                 {p.moznosti.map(([hodnota, text], i) => (
@@ -128,14 +109,14 @@ export default function Kalkulacie() {
 
       <div className="mt-6 space-y-6">
         <Karta nazov="K1" o={K1} volby={volby} popis="Externá firma, celodenné školenie. Technik celý čas, videokonferenčná sada, coffee break pre 40 osôb." />
-        <Predpoklad id="P4" />
+        <Predpoklad id="P11" />
         <Karta
           nazov="K2"
           o={K2}
           volby={volby}
           popis="Študentský florbalový klub UH (registrovaný spolok). Každú stredu 18:00 až 19:30, od 17. 2. do 12. 5. 2027. Bez služieb."
         />
-        <Predpoklad id="P10" />
+        <Predpoklad id="P20" />
       </div>
     </div>
   );

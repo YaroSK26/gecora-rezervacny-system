@@ -3,19 +3,38 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { cenaMiestnosti } from "@/data/cennik";
+import { Okno } from "@/components/Okno";
 import { Predpoklad, PredpokladZnacka } from "@/components/Predpoklad";
-import { PreAutora } from "@/components/PreAutora";
+import { ViacVyber } from "@/components/ViacVyber";
 import { odporuc, type Navrh } from "@/lib/odporucanie";
 import { ulozKoncept } from "@/lib/store";
-import { dovodNedostupnosti, eur, MIESTNOSTI, schvalovatel, type Miestnost } from "@/lib/vypocet";
+import { dovodNedostupnosti, eur, kapacitaText, MIESTNOSTI, schvalovatel, type Miestnost } from "@/lib/vypocet";
 
 const PRACOVISKA = [...new Set(MIESTNOSTI.map((m) => m.pracovisko))];
+const BUDOVY = [...new Set(MIESTNOSTI.map((m) => m.budova.split(",")[0]))].sort((a, b) => a.localeCompare(b, "sk"));
 
-function cena2024(m: Miestnost) {
-  const c = m.cenaExterni2024;
-  if (c === null) return "neuvedená";
-  return typeof c === "number" ? `${c} €/h` : c;
+// „videokonferencia (Teams)“ → „videokonferencia“, „24 PC“ → „PC“, „whiteboard“ → „tabuľa“
+function vybavenieMiestnosti(m: Miestnost) {
+  return (m.vybavenie ?? "")
+    .split(",")
+    .map((v) =>
+      v
+        .replace(/\(.*?\)/g, "")
+        .replace(/^\d+\s*/, "")
+        .trim()
+        .toLowerCase(),
+    )
+    .map((v) => (v === "whiteboard" ? "tabuľa" : v === "pc" ? "PC" : v === "tv" ? "TV" : v))
+    .filter(Boolean);
 }
+
+// Ponúkame len vybavenie, ktoré majú aspoň 2 miestnosti
+const VYBAVENIE = Object.entries(
+  MIESTNOSTI.flatMap(vybavenieMiestnosti).reduce<Record<string, number>>((s, v) => ({ ...s, [v]: (s[v] ?? 0) + 1 }), {}),
+)
+  .filter(([, n]) => n >= 2)
+  .sort((a, b) => b[1] - a[1])
+  .map(([v]) => v);
 
 function casDo(od: string, hodiny: number) {
   const min = 9 * 60 + Math.round(hodiny * 60);
@@ -24,7 +43,7 @@ function casDo(od: string, hodiny: number) {
 
 function CenaKratko({ kod }: { kod: string }) {
   const c = cenaMiestnosti(kod);
-  if (!c) return <span className="text-slate-400">na dopyt</span>;
+  if (!c) return <span className="text-slate-500">na dopyt</span>;
   return (
     <span>
       {eur(c.zaBlok)} <span className="text-slate-500">/ {c.blokMin} min</span>
@@ -38,14 +57,22 @@ export default function Miestnosti() {
   const [osoby, setOsoby] = useState(40);
   const [hodiny, setHodiny] = useState(6.5);
   const [rozpocet, setRozpocet] = useState<number | "">(250);
-  const [pohlad, setPohlad] = useState<"nic" | "odporucanie" | "vsetky">("nic");
+  const [odporucanie, setOdporucanie] = useState(false);
 
   const [hladaj, setHladaj] = useState("");
-  const [pracovisko, setPracovisko] = useState("");
+  const [pracoviska, setPracoviska] = useState<string[]>([]);
+  const [budova, setBudova] = useState("");
+  const [minKapacita, setMinKapacita] = useState<number | "">("");
+  const [vybavenie, setVybavenie] = useState<string[]>([]);
   const [lenOnline, setLenOnline] = useState(false);
   const [vybrana, setVybrana] = useState<string>("IPH-K1");
+  const [detailOkno, setDetailOkno] = useState(false);
 
-  const vysledok = odporuc({ osoby, hodiny, rozpocet: rozpocet === "" ? null : rozpocet * 100 });
+  const vysledok = odporuc({
+    osoby,
+    hodiny,
+    rozpocet: rozpocet === "" ? null : rozpocet * 100,
+  });
 
   function rezervovat(m: Miestnost, s?: { osoby: number; hodiny: number }) {
     ulozKoncept({
@@ -56,27 +83,54 @@ export default function Miestnosti() {
       osoby: s?.osoby ?? 1,
       typ: "externa",
       sluzby: {},
-      ziadatel: { firma: "", ico: "", adresa: "", kontakt: "", email: "", ucel: "" },
+      ziadatel: {
+        firma: "",
+        ico: "",
+        adresa: "",
+        kontakt: "",
+        email: "",
+        telefon: "",
+        ucel: "",
+      },
     });
     router.push("/rezervacia");
   }
 
   const zoznam = MIESTNOSTI.filter(
     (m) =>
-      (!pracovisko || m.pracovisko === pracovisko) &&
+      (pracoviska.length === 0 || pracoviska.includes(m.pracovisko)) &&
+      (!budova || m.budova.startsWith(budova)) &&
+      (minKapacita === "" || (typeof m.kapacita === "number" && m.kapacita >= minKapacita)) &&
+      vybavenie.every((v) => vybavenieMiestnosti(m).includes(v)) &&
       (!lenOnline || !dovodNedostupnosti(m)) &&
       (!hladaj || `${m.nazov} ${m.kod} ${m.vybavenie ?? ""}`.toLowerCase().includes(hladaj.toLowerCase())),
   );
   const detail = MIESTNOSTI.find((m) => m.kod === vybrana);
+  const filtrov =
+    [budova, minKapacita, lenOnline || "", hladaj].filter((x) => x !== "").length + vybavenie.length + pracoviska.length;
+
+  function vyber(kod: string) {
+    setVybrana(kod);
+    // Na mobile a tablete nie je miesto vedľa zoznamu: detail otvoríme v okne
+    if (window.innerWidth < 1024) setDetailOkno(true);
+  }
+
+  function zrusFiltre() {
+    setPracoviska([]);
+    setBudova("");
+    setMinKapacita("");
+    setVybavenie([]);
+    setLenOnline(false);
+    setHladaj("");
+  }
 
   return (
     <div>
-      <section className="rounded-2xl bg-gradient-to-br from-blue-900 to-blue-700 p-6 text-white md:p-8">
-        <div className="text-sm text-blue-200">Krok 1 z 5 · Externý hosť</div>
-        <h1 className="mt-1 text-3xl font-bold">Nájsť miestnosť</h1>
+      <section className="rounded-2xl bg-gradient-to-br from-blue-900 to-blue-700 p-5 text-white md:p-8">
+        <h1 className="text-3xl font-bold">Nájsť miestnosť</h1>
         <p className="mt-1 text-blue-100">Odpovedzte na 3 otázky a odporučíme vám vhodnú miestnosť.</p>
 
-        <div className="mt-6 grid gap-3 md:grid-cols-[1fr_1fr_1fr_auto]">
+        <div className="mt-6 grid gap-3 sm:grid-cols-3 lg:grid-cols-[1fr_1fr_1fr_auto]">
           <label className="rounded-lg bg-white/10 p-3">
             <span className="block text-xs text-blue-200">Koľko ľudí príde?</span>
             <input
@@ -99,7 +153,7 @@ export default function Miestnosti() {
             />
           </label>
           <label className="rounded-lg bg-white/10 p-3">
-            <span className="block text-xs text-blue-200">Rozpočet na miestnosť (€ bez DPH)</span>
+            <span className="block text-xs text-blue-200">Rozpočet na miestnosť (€)</span>
             <input
               type="number"
               min={0}
@@ -109,52 +163,28 @@ export default function Miestnosti() {
               className="mt-1 w-full rounded bg-white px-3 py-2 text-lg font-semibold text-slate-900"
             />
           </label>
-          <div className="flex flex-col justify-end gap-2">
+          <div className="flex flex-col justify-end sm:col-span-3 lg:col-span-1 lg:pb-3">
             <button
-              onClick={() => setPohlad("odporucanie")}
+              onClick={() => setOdporucanie(true)}
               disabled={!osoby || !hodiny}
-              className="rounded-lg bg-white px-5 py-3 font-semibold text-blue-900 shadow hover:bg-blue-50 disabled:opacity-50"
+              className="rounded bg-white px-5 py-2 text-lg font-semibold leading-7 text-blue-900 shadow hover:bg-blue-50 disabled:opacity-50"
             >
               Odporučiť miestnosť
             </button>
           </div>
         </div>
-        <button onClick={() => setPohlad("vsetky")} className="mt-4 text-sm text-blue-100 underline hover:text-white">
-          Alebo pozrieť všetky miestnosti ({MIESTNOSTI.length}) →
-        </button>
       </section>
 
-      <PreAutora>
-        <p>
-          <strong>Prečo odporúčanie:</strong> Hudák chce systém, ktorý nahradí e-maily a Excel (e-mail od Hudáka, bod 1
-          zápisu). Firma nepozná naše miestnosti, chce vedieť, čo sa jej zmestí a koľko to stojí. Výsledok predvyplní
-          formulár.
-        </p>
-        <p>
-          <strong>Ako to funguje:</strong> pravidlá v{" "}
-          <code>src/lib/odporucanie.ts</code>. 1. len miestnosti s cenou 2027 a číselnou kapacitou, 2. kapacita ≥ počet ľudí,
-          3. cena miestnosti = paušál + začaté bloky × cena za blok, 4. zoradenie podľa najmenšej kapacity, potom ceny.
-        </p>
-        <p>
-          <strong>Pre K1 (40 ľudí, 6,5 h):</strong> IPH-K1 nevyjde ako prvá, lebo R-205 (60 miest) je menšia. To je
-          v poriadku: ukazuje to, že pravidlá sú čestné. Na porade klikni na IPH-K1 v zozname alebo daj „Rovno vyplniť K1“.
-        </p>
-        <p>
-          <strong>Prečo nie AI:</strong> zadanie, situácia 5.5. Pravidlá vieš klientovi vysvetliť a vždy dajú rovnaký výsledok.
-        </p>
-      </PreAutora>
-
-      {pohlad === "odporucanie" && (
+      {odporucanie && (
         <section className="mt-8">
           <h2 className="text-xl font-bold">
-            Odporúčame pre {osoby} ľudí na {hodiny.toLocaleString("sk-SK")} h
-            {rozpocet !== "" && ` do ${rozpocet} € bez DPH`}
+            Odporúčame pre {osoby} ľudí na {hodiny.toLocaleString("sk-SK")} h{rozpocet !== "" && ` do ${rozpocet} €`}
           </h2>
-          <Predpoklad id="P24" />
-          <Predpoklad id="P25" />
+          <Predpoklad id="P1" />
+          <Predpoklad id="P2" />
           {vysledok.vhodne.length === 0 ? (
             <p className="mt-3 rounded-lg border border-slate-200 bg-white p-4 text-slate-600">
-              V rozpočte nemáme vhodnú miestnosť. Pozrite si možnosti nad rozpočtom nižšie.
+              V rozpočte nemáme vhodnú miestnosť. Pozrite si všetky miestnosti nižšie.
             </p>
           ) : (
             <div className="mt-3 grid gap-4 md:grid-cols-3">
@@ -163,133 +193,203 @@ export default function Miestnosti() {
               ))}
             </div>
           )}
-          {vysledok.nadRozpocet.length > 0 && (
-            <div className="mt-6">
-              <h3 className="text-sm font-semibold text-slate-600">Zmestí sa, ale je nad rozpočet</h3>
-              <ul className="mt-2 divide-y divide-slate-100 rounded-lg border border-slate-200 bg-white text-sm">
-                {vysledok.nadRozpocet.map((n) => (
-                  <li key={n.m.kod} className="flex items-center justify-between gap-3 px-4 py-2">
-                    <span>
-                      {n.m.nazov} <span className="font-mono text-xs text-slate-500">{n.m.kod}</span> · {n.m.kapacita} miest
-                    </span>
-                    <span className="flex items-center gap-3">
-                      <span className="tabular font-semibold">{eur(n.cena)}</span>
-                      <button onClick={() => rezervovat(n.m, { osoby, hodiny })} className="text-blue-700 underline">
-                        Rezervovať
-                      </button>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          <button onClick={() => setPohlad("vsetky")} className="mt-6 rounded-lg border border-blue-700 px-4 py-2 font-semibold text-blue-700 hover:bg-blue-50">
-            Pozrieť všetky miestnosti
-          </button>
         </section>
       )}
 
-      {pohlad === "vsetky" && (
-        <section className="mt-8">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-bold">Všetky miestnosti</h2>
-              <p className="text-sm text-slate-600">
-                {MIESTNOSTI.length} miestností z {PRACOVISKA.length} pracovísk, ktoré poslali údaje. Ostatné fakulty, ústavy
-                a internáty zatiaľ nič neposlali.
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-3 text-sm">
-              <input
-                value={hladaj}
-                onChange={(e) => setHladaj(e.target.value)}
-                placeholder="Hľadať názov, kód, vybavenie…"
-                className="w-64 rounded-lg border border-slate-300 bg-white px-3 py-1.5"
-              />
-              <label className="flex items-center gap-2">
-                <input type="checkbox" checked={lenOnline} onChange={(e) => setLenOnline(e.target.checked)} />
-                len s online rezerváciou
-              </label>
-            </div>
+      <section className="mt-8">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-bold">Všetky miestnosti</h2>
+            <p className="text-sm text-slate-600">
+              {MIESTNOSTI.length} miestností na {PRACOVISKA.length} pracoviskách. (Chýbajú údaje od ostatných fakúlt, ústavov a
+              internátov.)
+            </p>
           </div>
-
-          <div className="mt-3 flex flex-wrap gap-2 text-sm">
-            {["", ...PRACOVISKA].map((p) => (
-              <button
-                key={p || "vsetky"}
-                onClick={() => setPracovisko(p)}
-                className={`rounded-full border px-3 py-1 ${pracovisko === p ? "border-blue-700 bg-blue-700 text-white" : "border-slate-300 bg-white hover:border-blue-400"}`}
-              >
-                {p || "Všetky pracoviská"}
-              </button>
-            ))}
+          <div className="flex w-full flex-wrap items-center gap-3 text-sm sm:w-auto">
+            <input
+              value={hladaj}
+              onChange={(e) => setHladaj(e.target.value)}
+              placeholder="Hľadať názov, kód, vybavenie…"
+              aria-label="Hľadať miestnosť"
+              className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 sm:w-64"
+            />
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={lenOnline} onChange={(e) => setLenOnline(e.target.checked)} />
+              len s online rezerváciou
+            </label>
           </div>
+        </div>
 
-          <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_380px]">
-            <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-              <table className="w-full text-sm">
-                <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
-                  <tr>
-                    <th className="px-4 py-2">Miestnosť</th>
-                    <th className="px-4 py-2 text-right">Kapacita</th>
-                    <th className="px-4 py-2 text-right">Cena 2027 bez DPH</th>
-                    <th className="px-4 py-2">Online</th>
-                  </tr>
-                </thead>
-                {PRACOVISKA.filter((p) => zoznam.some((m) => m.pracovisko === p)).map((p) => (
-                  <tbody key={p}>
-                    <tr className="bg-blue-50/60">
-                      <td colSpan={4} className="px-4 py-1.5 text-xs font-semibold text-blue-900">
-                        {p}
-                      </td>
-                    </tr>
+        <div className="mt-3 grid grid-cols-1 gap-3 text-sm sm:flex sm:flex-wrap sm:items-end">
+          <ViacVyber
+            nazov="Pracovisko"
+            vsetko="Všetky pracoviská"
+            moznosti={PRACOVISKA}
+            vybrane={pracoviska}
+            onZmena={setPracoviska}
+          />
+          <ViacVyber
+            nazov="Vybavenie (musí mať všetko vybrané)"
+            vsetko="Akékoľvek vybavenie"
+            moznosti={VYBAVENIE}
+            vybrane={vybavenie}
+            onZmena={setVybavenie}
+          />
+          <label className="flex flex-col">
+            <span className="text-xs text-slate-500">Lokalita (budova)</span>
+            <select
+              value={budova}
+              onChange={(e) => setBudova(e.target.value)}
+              className="h-9 rounded-lg border border-slate-300 bg-white px-2 sm:w-56"
+            >
+              <option value="">Všetky budovy</option>
+              {BUDOVY.map((b) => (
+                <option key={b}>{b}</option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col">
+            <span className="text-xs text-slate-500">Kapacita aspoň</span>
+            <input
+              type="number"
+              min={1}
+              value={minKapacita}
+              placeholder="počet osôb"
+              onChange={(e) => setMinKapacita(e.target.value === "" ? "" : Number(e.target.value))}
+              className="h-9 rounded-lg border border-slate-300 bg-white px-3 sm:w-32"
+            />
+          </label>
+          {filtrov > 0 && (
+            <button onClick={zrusFiltre} className="h-9 cursor-pointer px-1 text-left text-blue-700 underline">
+              Zrušiť filtre
+            </button>
+          )}
+        </div>
+
+        <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_380px]">
+          <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+            <div className="px-4 pt-2 text-xs text-slate-500" aria-live="polite">
+              Zobrazené: {zoznam.length} z {MIESTNOSTI.length}
+            </div>
+            {zoznam.length === 0 && <p className="px-4 py-6 text-slate-600">Filtru nevyhovuje žiadna miestnosť.</p>}
+            {/* Mobil: kompaktné karty, celý zoznam bez posúvania do strany */}
+            <ul className="divide-y divide-slate-100 sm:hidden">
+              {PRACOVISKA.filter((p) => zoznam.some((m) => m.pracovisko === p)).map((p) => (
+                <li key={p}>
+                  <div className="bg-blue-50/60 px-4 py-1.5 text-xs font-semibold text-blue-900">{p}</div>
+                  <ul className="divide-y divide-slate-100">
                     {zoznam
                       .filter((m) => m.pracovisko === p)
                       .map((m) => {
                         const dovod = dovodNedostupnosti(m);
                         return (
-                          <tr
-                            key={m.kod}
-                            onClick={() => setVybrana(m.kod)}
-                            className={`cursor-pointer border-t border-slate-100 ${vybrana === m.kod ? "bg-blue-100/70" : "hover:bg-slate-50"}`}
-                          >
-                            <td className="px-4 py-2">
-                              <div className="font-medium">{m.nazov}</div>
-                              <div className="font-mono text-xs text-slate-500">{m.kod}</div>
-                            </td>
-                            <td className="tabular px-4 py-2 text-right">{m.kapacita ?? "–"}</td>
-                            <td className="tabular px-4 py-2 text-right">
-                              <CenaKratko kod={m.kod} />
-                            </td>
-                            <td className="px-4 py-2">
-                              {dovod ? (
-                                <span className="text-xs text-slate-400">nie</span>
-                              ) : (
-                                <span className="rounded bg-green-100 px-1.5 py-0.5 text-xs font-semibold text-green-800">áno</span>
-                              )}
-                            </td>
-                          </tr>
+                          <li key={m.kod}>
+                            <button
+                              onClick={() => vyber(m.kod)}
+                              className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-blue-50"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <div className="truncate font-medium">{m.nazov}</div>
+                                <div className="text-xs text-slate-500">
+                                  <span className="font-mono">{m.kod}</span> · {kapacitaText(m)}
+                                  {dovod && " · len na dopyt"}
+                                </div>
+                              </div>
+                              <div className="tabular shrink-0 text-right text-sm">
+                                <CenaKratko kod={m.kod} />
+                              </div>
+                              <span aria-hidden="true" className="text-slate-400">
+                                ›
+                              </span>
+                            </button>
+                          </li>
                         );
                       })}
-                  </tbody>
-                ))}
-              </table>
-            </div>
-
-            {detail && <DetailMiestnosti m={detail} onRezervovat={() => rezervovat(detail)} />}
+                  </ul>
+                </li>
+              ))}
+            </ul>
+            <table className="hidden w-full text-sm sm:table">
+              <caption className="sr-only">Miestnosti podľa pracovísk. Riadok vyberiete klikom alebo klávesom Enter.</caption>
+              <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+                <tr>
+                  <th className="px-4 py-2">Miestnosť</th>
+                  <th className="px-4 py-2 text-right">Kapacita</th>
+                  <th className="px-4 py-2 text-right">Cena bez DPH</th>
+                  <th className="px-4 py-2">Online</th>
+                </tr>
+              </thead>
+              {PRACOVISKA.filter((p) => zoznam.some((m) => m.pracovisko === p)).map((p) => (
+                <tbody key={p}>
+                  <tr className="bg-blue-50/60">
+                    <td colSpan={4} className="px-4 py-1.5 text-xs font-semibold text-blue-900">
+                      {p}
+                    </td>
+                  </tr>
+                  {zoznam
+                    .filter((m) => m.pracovisko === p)
+                    .map((m) => {
+                      const dovod = dovodNedostupnosti(m);
+                      return (
+                        <tr
+                          key={m.kod}
+                          onClick={() => vyber(m.kod)}
+                          onKeyDown={(e) => e.key === "Enter" && vyber(m.kod)}
+                          tabIndex={0}
+                          aria-selected={vybrana === m.kod}
+                          className={`cursor-pointer border-t border-slate-100 ${vybrana === m.kod ? "bg-blue-100/70" : "hover:bg-slate-50"}`}
+                        >
+                          <td className="px-4 py-2">
+                            <div className="font-medium">{m.nazov}</div>
+                            <div className="font-mono text-xs text-slate-500">{m.kod}</div>
+                          </td>
+                          <td className="tabular px-4 py-2 text-right">{m.kapacita ?? "–"}</td>
+                          <td className="tabular px-4 py-2 text-right">
+                            <CenaKratko kod={m.kod} />
+                          </td>
+                          <td className="px-4 py-2">
+                            {dovod ? (
+                              <span className="text-xs text-slate-500">nie</span>
+                            ) : (
+                              <span className="rounded bg-green-100 px-1.5 py-0.5 text-xs font-semibold text-green-800">áno</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              ))}
+            </table>
           </div>
-          <Predpoklad id="P2" />
-          <Predpoklad id="P17" />
-        </section>
-      )}
+
+          {detail && (
+            <div className="hidden lg:block">
+              <DetailMiestnosti m={detail} onRezervovat={() => rezervovat(detail)} />
+            </div>
+          )}
+          {detail && detailOkno && (
+            <div className="lg:hidden">
+              <Okno nadpis={detail.nazov} sirka="max-w-lg" onZavri={() => setDetailOkno(false)}>
+                <DetailMiestnosti m={detail} vOkne onRezervovat={() => rezervovat(detail)} />
+              </Okno>
+            </div>
+          )}
+        </div>
+        <Predpoklad id="P3" />
+        <Predpoklad id="P4" />
+      </section>
     </div>
   );
 }
 
 function NavrhPanel({ n, prvy, onRezervovat }: { n: Navrh; prvy: boolean; onRezervovat: () => void }) {
   return (
-    <div className={`flex flex-col rounded-xl border bg-white p-5 ${prvy ? "border-blue-600 shadow-lg ring-2 ring-blue-600/20" : "border-slate-200"}`}>
-      {prvy && <div className="mb-2 w-fit rounded-full bg-blue-700 px-2 py-0.5 text-xs font-semibold text-white">Najlepšia zhoda</div>}
+    <div
+      className={`flex flex-col rounded-xl border bg-white p-5 ${prvy ? "border-blue-600 shadow-lg ring-2 ring-blue-600/20" : "border-slate-200"}`}
+    >
+      {prvy && (
+        <div className="mb-2 w-fit rounded-full bg-blue-700 px-2 py-0.5 text-xs font-semibold text-white">Najlepšia zhoda</div>
+      )}
       <div className="text-lg font-bold">{n.m.nazov}</div>
       <div className="text-xs text-slate-500">
         {n.m.kod} · {n.m.budova}
@@ -305,28 +405,31 @@ function NavrhPanel({ n, prvy, onRezervovat }: { n: Navrh; prvy: boolean; onReze
           </li>
         ))}
         <li className="flex gap-2 text-slate-500">
-          <span>·</span>schvaľuje {schvalovatel(n.m)}
+          <span>·</span>Schvaľuje: {schvalovatel(n.m)}
         </li>
       </ul>
-      <button onClick={onRezervovat} className="mt-4 rounded-lg bg-blue-700 px-4 py-2 font-semibold text-white hover:bg-blue-800">
+      <button
+        onClick={onRezervovat}
+        className="mt-4 cursor-pointer rounded-lg bg-blue-700 px-4 py-2 font-semibold text-white hover:bg-blue-800"
+      >
         Rezervovať
       </button>
     </div>
   );
 }
 
-function DetailMiestnosti({ m, onRezervovat }: { m: Miestnost; onRezervovat: () => void }) {
+function DetailMiestnosti({ m, vOkne = false, onRezervovat }: { m: Miestnost; vOkne?: boolean; onRezervovat: () => void }) {
   const c = cenaMiestnosti(m.kod);
   const dovod = dovodNedostupnosti(m);
   const riadky: [string, React.ReactNode][] = [
     ["Pracovisko", m.pracovisko],
     ["Budova", m.budova],
-    ["Kapacita", m.kapacita ?? "neuvedená"],
+    ["Kapacita", kapacitaText(m)],
     ["Vybavenie", m.vybavenie ?? "neuvedené"],
     ["Otvorené", m.otvaracieHodiny],
     ["Schvaľuje", schvalovatel(m)],
     [
-      "Cena 2027",
+      "Cena bez DPH",
       c ? (
         <>
           {c.pausal > 0 && `paušál ${eur(c.pausal)} + `}
@@ -337,14 +440,13 @@ function DetailMiestnosti({ m, onRezervovat }: { m: Miestnost; onRezervovat: () 
         "chýba"
       ),
     ],
-    ["Cena 2024", <span key="c" className="text-slate-500">{cena2024(m)} (neplatí)</span>],
   ];
   if (m.poznamka) riadky.push(["Poznámka", m.poznamka]);
 
   return (
-    <aside className="h-fit rounded-lg border border-slate-200 bg-white p-5 lg:sticky lg:top-4">
+    <aside className={vOkne ? "" : "h-fit rounded-lg border border-slate-200 bg-white p-5 lg:sticky lg:top-4"}>
       <div className="font-mono text-xs text-slate-500">{m.kod}</div>
-      <h3 className="text-xl font-bold">{m.nazov}</h3>
+      {!vOkne && <h3 className="text-xl font-bold">{m.nazov}</h3>}
       <dl className="mt-3 space-y-2 text-sm">
         {riadky.map(([k, v]) => (
           <div key={k} className="grid grid-cols-[90px_1fr] gap-2">
@@ -353,19 +455,22 @@ function DetailMiestnosti({ m, onRezervovat }: { m: Miestnost; onRezervovat: () 
           </div>
         ))}
       </dl>
-      {m.kod === "R-AULA" && <Predpoklad id="P13" />}
-      {m.kod === "UK-1" && <Predpoklad id="P14" />}
-      {m.kod === "SC-H" && <Predpoklad id="P22" />}
-      {typeof m.kapacita !== "number" && <Predpoklad id="P17" />}
+      {m.kod === "R-AULA" && <Predpoklad id="P5" />}
+      {m.kod === "UK-1" && <Predpoklad id="P6" />}
+      {m.kod === "SC-H" && <Predpoklad id="P7" />}
+      {typeof m.kapacita !== "number" && <Predpoklad id="P4" />}
       {c && (
         <p className="mt-2 text-xs text-slate-500">
-          Ceny sú z Cenníka 2027 <PredpokladZnacka id="P1" />
+          Ceny sú z Cenníka 2027 <PredpokladZnacka id="P8" />
         </p>
       )}
       {dovod ? (
         <div className="mt-4 rounded bg-slate-100 px-3 py-2 text-sm text-slate-600">{dovod}</div>
       ) : (
-        <button onClick={onRezervovat} className="mt-4 w-full rounded-lg bg-blue-700 px-4 py-2 font-semibold text-white hover:bg-blue-800">
+        <button
+          onClick={onRezervovat}
+          className="mt-4 w-full cursor-pointer rounded-lg bg-blue-700 px-4 py-2 font-semibold text-white hover:bg-blue-800"
+        >
           Rezervovať túto miestnosť
         </button>
       )}

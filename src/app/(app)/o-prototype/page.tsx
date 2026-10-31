@@ -12,7 +12,7 @@ const kroky = [
 const ziadosti = [
   ["Ing. Hudák (ÚIT)", "Jeden systém pre všetky pracoviská, rezervácie so schvaľovaním.", "Krok 1 až 4: všetky pracoviská v jednom zozname, schvaľovanie.", "funguje"],
   ["Ing. Kováčová (ekonomické odd.)", "Podklad s rozpisom DPH, nový cenník od januára.", "Krok 5: podklad pre faktúru. Ceny podľa Cenníka 2027.", "funguje"],
-  ["Mgr. Sedlák (knižnica)", "Každé pracovisko schvaľuje len svoje miestnosti. Kto schvaľuje Aulu?", "Žiadosť ide schvaľovateľovi pracoviska. Aula: predpoklad P13.", "funguje"],
+  ["Mgr. Sedlák (knižnica)", "Každé pracovisko schvaľuje len svoje miestnosti. Kto schvaľuje Aulu?", "Žiadosť ide schvaľovateľovi pracoviska. Aula: Predpoklad P5.", "funguje"],
   ["Ing. Baran (športové centrum)", "Rezervácie na celý semester, každý týždeň. Spolky neplatia.", "Cena série (K2) je v Kalkulácii K1 a K2. Formulár pre sériu: ďalšia fáza.", "čiastočne"],
   ["doc. Lenártová (Fakulta umení)", "Verejná stránka akcie s programom a registráciou.", "Ukážka, kde to bude. Rozhodnutie o termíne je otvorené.", "ďalšia fáza"],
 ];

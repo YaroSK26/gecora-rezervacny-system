@@ -1,4 +1,4 @@
-// Odporúčanie miestnosti podľa pravidiel (P24, P25): zmestí sa, je v rozpočte, najmenej prázdnych miest.
+// Odporúčanie miestnosti podľa pravidiel (P1, P2): zmestí sa, je v rozpočte, najmenej prázdnych miest.
 
 import { cenaMiestnosti } from "@/data/cennik";
 import { dovodNedostupnosti, MIESTNOSTI, otvaracieHodiny, type Miestnost } from "./vypocet";
@@ -13,7 +13,7 @@ export type Navrh = {
   dovody: string[];
 };
 
-// Cena miestnosti pre daný čas: paušál + začaté bloky × cena za blok (P3)
+// Cena miestnosti pre daný čas: paušál + začaté bloky × cena za blok (P9)
 export function cenaZaCas(kod: string, minut: number) {
   const c = cenaMiestnosti(kod);
   if (!c) return null;
