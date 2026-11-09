@@ -41,6 +41,14 @@ function casDo(od: string, hodiny: number) {
   return `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
 }
 
+function stylBudovy(index: number) {
+  return [
+    "border-y border-blue-200 bg-blue-100 text-blue-950",
+    "border-y border-indigo-200 bg-indigo-100 text-indigo-950",
+    "border-y border-sky-200 bg-sky-100 text-sky-950",
+  ][index % 3];
+}
+
 function CenaKratko({ kod }: { kod: string }) {
   const c = cenaMiestnosti(kod);
   if (!c) return <span className="text-slate-500">na dopyt</span>;
@@ -142,7 +150,7 @@ export default function Miestnosti() {
             />
           </label>
           <label className="rounded-lg bg-white/10 p-3">
-            <span className="block text-xs text-blue-200">Na ako dlho? (hodiny)</span>
+            <span className="block text-xs text-blue-200">Na ako dlho? (h)</span>
             <input
               type="number"
               min={0.5}
@@ -274,9 +282,9 @@ export default function Miestnosti() {
             {zoznam.length === 0 && <p className="px-4 py-6 text-slate-600">Filtru nevyhovuje žiadna miestnosť.</p>}
             {/* Mobil: kompaktné karty, celý zoznam bez posúvania do strany */}
             <ul className="divide-y divide-slate-100 sm:hidden">
-              {PRACOVISKA.filter((p) => zoznam.some((m) => m.pracovisko === p)).map((p) => (
+              {PRACOVISKA.filter((p) => zoznam.some((m) => m.pracovisko === p)).map((p, index) => (
                 <li key={p}>
-                  <div className="bg-blue-50/60 px-4 py-1.5 text-xs font-semibold text-blue-900">{p}</div>
+                  <div className={`${stylBudovy(index)} px-4 py-2 text-sm font-bold tracking-wide`}>{p}</div>
                   <ul className="divide-y divide-slate-100">
                     {zoznam
                       .filter((m) => m.pracovisko === p)
@@ -319,10 +327,10 @@ export default function Miestnosti() {
                   <th className="px-4 py-2">Online</th>
                 </tr>
               </thead>
-              {PRACOVISKA.filter((p) => zoznam.some((m) => m.pracovisko === p)).map((p) => (
+              {PRACOVISKA.filter((p) => zoznam.some((m) => m.pracovisko === p)).map((p, index) => (
                 <tbody key={p}>
-                  <tr className="bg-blue-50/60">
-                    <td colSpan={4} className="px-4 py-1.5 text-xs font-semibold text-blue-900">
+                  <tr className={stylBudovy(index)}>
+                    <td colSpan={4} className="px-4 py-2 text-sm font-bold tracking-wide">
                       {p}
                     </td>
                   </tr>

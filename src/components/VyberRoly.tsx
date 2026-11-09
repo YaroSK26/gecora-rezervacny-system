@@ -19,7 +19,7 @@ export function VyberRoly() {
           <button
             disabled={r.dalsiaFaza}
             onClick={() => vyber(r.id as Rola, r.domov)}
-            className="group cursor-pointer h-full w-full rounded-lg border border-slate-200 p-4 text-left transition duration-200 hover:-translate-y-0.5 hover:border-blue-500 hover:bg-blue-50 hover:shadow-md disabled:cursor-not-allowed disabled:bg-slate-50 disabled:hover:translate-y-0 disabled:hover:border-slate-200 disabled:hover:shadow-none"
+            className="group cursor-pointer h-full w-full rounded-lg border-2 border-slate-300 p-4 text-left transition duration-200 hover:-translate-y-0.5 hover:border-blue-500 hover:bg-blue-50 hover:shadow-md disabled:cursor-not-allowed disabled:bg-slate-50 disabled:hover:translate-y-0 disabled:hover:border-slate-300 disabled:hover:shadow-none"
           >
             <div className="flex items-start justify-between gap-2">
               <div className="font-semibold transition group-hover:text-blue-800 group-disabled:text-slate-400">{r.nazov}</div>

@@ -6,8 +6,50 @@
 }
 
 body {
-  background: #f8fafc;
+  background: #dbeafe;
   color: #0f172a;
+}
+
+main#obsah {
+  background: linear-gradient(135deg, #dbeafe 0%, #eff6ff 48%, #bfdbfe 100%);
+}
+
+/* Jasné oddelenie kariet, tabuliek a formulárov v celej aplikácii. */
+[class~="border-slate-100"] {
+  border-color: #cbd5e1 !important;
+}
+
+[class~="border-slate-200"] {
+  border-color: #94a3b8 !important;
+}
+
+[class~="border-slate-200"]:not([class~="border-t"]) {
+  border-width: 2px;
+}
+
+[class~="border-slate-300"] {
+  border-color: #64748b !important;
+}
+
+[class~="border-slate-300"]:not([class~="border-t"]) {
+  border-width: 2px;
+}
+
+/* Modrý základ a jemné modré plochy udržia obsah vizuálne členený. */
+[class~="bg-slate-50"] {
+  background-color: #eff6ff !important;
+}
+
+[class~="bg-slate-100"] {
+  background-color: #bfdbfe !important;
+}
+
+table thead {
+  background-color: #dbeafe !important;
+}
+
+main#obsah [class~="bg-white"] {
+  background-color: #f8fbff !important;
 }
 
 /* Scrollbar vo farbách UH (Firefox + Chrome/Edge) */

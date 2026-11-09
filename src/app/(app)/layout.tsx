@@ -12,13 +12,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         Preskočiť na obsah
       </a>
       <Hlavicka />
-      <main id="obsah" tabIndex={-1} className="flex-1 px-4 py-6 outline-none sm:py-8">
+      <main
+        id="obsah"
+        tabIndex={-1}
+        className="flex-1 bg-gradient-to-b from-blue-50 via-slate-50 to-blue-50/70 px-4 py-6 outline-none sm:py-8"
+      >
         <div className="mx-auto max-w-6xl">
           <Strazca>{children}</Strazca>
         </div>
       </main>
-      <footer className="no-print border-t border-slate-200 py-4 text-center text-xs text-slate-500">
-        Rezervačný systém Univerzity Hron · prototyp · <Link href="/dalsia-faza" className="underline">Čo bude v ďalšej fáze</Link>
+      <footer className="no-print border-t border-blue-950 bg-blue-900 py-4 text-center text-xs text-white">
+        Rezervačný systém Univerzity Hron · prototyp ·{" "}
+        <Link href="/dalsia-faza" className="text-white underline hover:text-blue-100">
+          Čo bude v ďalšej fáze
+        </Link>
       </footer>
     </div>
   );

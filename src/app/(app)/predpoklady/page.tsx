@@ -1,39 +1,78 @@
 import { PREDPOKLADY } from "@/data/predpoklady";
 
+const SKUPINY = [
+  {
+    nazov: "Miestnosti a dostupnosť",
+    popis: "Čo sa dá rezervovať, za akých podmienok a s akými údajmi.",
+    ids: ["P3", "P4", "P5", "P6", "P7", "P10"],
+  },
+  {
+    nazov: "Cenník a výpočet ceny",
+    popis: "Pravidlá, ktoré priamo ovplyvňujú cenu rezervácie.",
+    ids: ["P1", "P2", "P8", "P9", "P11", "P12", "P17"],
+  },
+  {
+    nazov: "Služby a občerstvenie",
+    popis: "Ako počítame technika, občerstvenie a doplnkové služby.",
+    ids: ["P13", "P14", "P15", "P23"],
+  },
+  {
+    nazov: "Zľavy a interní používatelia",
+    popis: "Rozdiely medzi externou firmou, zamestnancom a študentským spolkom.",
+    ids: ["P19", "P20", "P22", "P25"],
+  },
+  {
+    nazov: "Opakované rezervácie a storno",
+    popis: "Pravidlá pre série termínov a zrušenie rezervácie.",
+    ids: ["P21", "P27"],
+  },
+  {
+    nazov: "Rozsah prototypu",
+    popis: "Čo je v prototype zjednodušené alebo odložené do ďalšej fázy.",
+    ids: ["P16", "P18", "P24", "P26"],
+  },
+];
+
 export default function Predpoklady() {
   return (
     <div>
       <h1 className="text-2xl font-bold">Predpoklady a otázky pre vás</h1>
       <p className="mt-1 text-sm text-slate-600">
-        Tu sme v podkladoch nenašli jasnú odpoveď. Rozhodli sme sa sami, aby prototyp fungoval. Každý predpoklad sa dá
-        zmeniť, keď rozhodnete inak.
+        V podkladoch nie sú pri všetkých pravidlách jasné odpovede. Preto sme ich zoskupili do šiestich oblastí a zvolili
+        dočasné pravidlá, aby prototyp fungoval. Najdôležitejšie otázky sú viditeľné hneď, podrobnosti otvoríte rozbalením.
       </p>
-      <div className="mt-4 overflow-x-auto rounded border border-slate-200 bg-white">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
-            <tr>
-              <th className="px-3 py-2">#</th>
-              <th className="px-3 py-2">Čo sme predpokladali</th>
-              <th className="px-3 py-2">Prečo: čo v podkladoch chýba</th>
-              <th className="px-3 py-2">Čo potrebujeme od vás vedieť</th>
-            </tr>
-          </thead>
-          <tbody>
-            {PREDPOKLADY.map((p) => (
-              <tr key={p.id} className="border-t border-slate-100 align-top">
-                <td className="px-3 py-2 font-mono text-xs font-semibold">{p.id}</td>
-                <td className="px-3 py-2">
-                  {p.text}
-                  {p.meniCenu && (
-                    <span className="ml-1 rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-semibold text-blue-800">mení cenu</span>
-                  )}
-                </td>
-                <td className="px-3 py-2 text-xs text-slate-500">{p.zdroj}</td>
-                <td className="px-3 py-2 text-slate-600">{p.otazka || "—"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="mt-5 grid grid-cols-1 gap-4">
+        {SKUPINY.map((skupina) => {
+          const predpoklady = skupina.ids.map((id) => PREDPOKLADY.find((p) => p.id === id)!);
+          const otazky = predpoklady.filter((p) => p.otazka);
+          return (
+            <details key={skupina.nazov} className="group rounded-xl border-2 border-blue-200 bg-blue-50/80 p-4 shadow-sm">
+              <summary className="cursor-pointer list-none pr-6 marker:hidden">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h2 className="font-bold text-blue-950">{skupina.nazov}</h2>
+                    <p className="mt-1 text-sm text-slate-600">{skupina.popis}</p>
+                  </div>
+                  <span className="rounded-full bg-blue-700 px-2 py-0.5 text-xs font-bold text-white">{otazky.length} otázok</span>
+                </div>
+                <div className="mt-3 text-sm font-semibold text-blue-800 group-open:hidden">Zobraziť predpoklady ↓</div>
+              </summary>
+              <div className="mt-4 space-y-3 border-t border-blue-200 pt-3">
+                {predpoklady.map((p) => (
+                  <article key={p.id} className="rounded-lg border border-blue-200 bg-white p-3 text-sm">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-mono text-xs font-bold text-blue-700">{p.id}</span>
+                      {p.meniCenu && <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">mení cenu</span>}
+                    </div>
+                    <p className="mt-1 text-slate-800">{p.text}</p>
+                    {p.otazka && <p className="mt-2 text-blue-900"><strong>Otázka:</strong> {p.otazka}</p>}
+                    <p className="mt-2 text-xs text-slate-500"><strong>Zdroj:</strong> {p.zdroj}</p>
+                  </article>
+                ))}
+              </div>
+            </details>
+          );
+        })}
       </div>
 
       <h2 className="mt-8 text-xl font-bold">Otvorené rozhodnutia vedenia</h2>

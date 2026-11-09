@@ -43,7 +43,7 @@ export const PREDPOKLADY: Predpoklad[] = [
   },
   {
     id: "P7",
-    text: "Halu SC-H sa dá rezervovať len celú. Cena za polovicu haly v cenníku chýba.",
+    text: "V prototype zatiaľ ponúkame len celú halu SC-H, pretože cena polovice haly v cenníku chýba. Podklady zároveň hovoria, že hala sa dá deliť na polovice.",
     otazka: "Koľko stojí polovica haly?",
     zdroj: "Cenník 2027, A. Miestnosti, SC-H: „polovica haly: cenu doplní ŠC“. Miestnosti, SC-H: „dá sa deliť na polovice“.",
   },
