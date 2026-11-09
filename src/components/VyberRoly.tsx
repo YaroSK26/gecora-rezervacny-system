@@ -24,7 +24,9 @@ export function VyberRoly() {
             <div className="flex items-start justify-between gap-2">
               <div className="font-semibold transition group-hover:text-blue-800 group-disabled:text-slate-400">{r.nazov}</div>
               {r.dalsiaFaza ? (
-                <span className="shrink-0 whitespace-nowrap rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-slate-500">ďalšia fáza</span>
+                <span className="inline-flex min-w-max shrink-0 whitespace-nowrap rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-slate-500">
+                  ďalšia fáza
+                </span>
               ) : (
                 <span className="-translate-x-1 text-blue-600 opacity-0 transition group-hover:translate-x-0 group-hover:opacity-100">→</span>
               )}

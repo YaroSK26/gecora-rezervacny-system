@@ -66,7 +66,7 @@ export default function Uvod() {
                 <td className="px-3 py-2">{kde}</td>
                 <td className="px-3 py-2">
                   <span
-                    className={`rounded px-2 py-0.5 text-xs font-semibold ${
+                    className={`inline-block whitespace-nowrap rounded px-2 py-0.5 text-xs font-semibold ${
                       stav === "funguje" ? "bg-green-100 text-green-800" : stav === "čiastočne" ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"
                     }`}
                   >
