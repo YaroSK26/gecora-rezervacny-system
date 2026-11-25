@@ -9,6 +9,7 @@ import { Predpoklad } from "./Predpoklad";
 
 // Stránky, ktoré vidí každá rola
 export const SPOLOCNE = [
+  { href: "/stretnutie", text: "Stretnutie" },
   { href: "/kalkulacie", text: "Kalkulácia K1 a K2" },
   { href: "/predpoklady", text: "Predpoklady" },
   { href: "/o-prototype", text: "O prototype" },
